@@ -1,5 +1,7 @@
 import AppKit
 
+setbuf(stdout, nil)
+
 MainActor.assumeIsolated {
     let app = NSApplication.shared
     let delegate = AppDelegate()

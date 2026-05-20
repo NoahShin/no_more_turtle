@@ -18,7 +18,7 @@ final class TurtleOverlayWindow {
 
     private func makeWindow() -> NSWindow {
         let screenFrame = NSScreen.main?.visibleFrame ?? NSScreen.screens.first!.frame
-        let size = CGSize(width: 240, height: 240)
+        let size = CGSize(width: 600, height: 600)
         let origin = CGPoint(
             x: screenFrame.maxX - size.width - 24,
             y: screenFrame.maxY - size.height - 24
@@ -33,13 +33,14 @@ final class TurtleOverlayWindow {
         )
         w.isOpaque = false
         w.backgroundColor = .clear
+        w.alphaValue = 0.55
         w.hasShadow = false
         w.level = .floating
         w.ignoresMouseEvents = true
         w.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
 
         let label = NSTextField(labelWithString: "🐢")
-        label.font = .systemFont(ofSize: 200)
+        label.font = .systemFont(ofSize: 500)
         label.alignment = .center
         label.isBezeled = false
         label.drawsBackground = false

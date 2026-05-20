@@ -1,51 +1,64 @@
 import CoreGraphics
-import Vision
+import Foundation
 
-struct PostureVerdict {
+struct PostureBaseline: Sendable, Codable {
+    let center: CGPoint
+    let boundingBox: CGRect
+}
+
+struct CalibrationProfile: Sendable, Codable {
+    let good: PostureBaseline
+    let turtle: PostureBaseline
+}
+
+struct PostureVerdict: Sendable {
     let isTurtle: Bool
-    let confidence: Float
-    let neckRatio: CGFloat
+    /// 0 = at the good baseline, 1 = at the turtle baseline, can exceed in either direction.
+    let score: CGFloat
 }
 
 enum PostureAnalyzer {
 
-    static let minimumJointConfidence: Float = 0.3
+    /// Trigger when the user has slid ≥65% of the way from their calibrated good posture toward their calibrated turtle posture.
+    static let scoreThreshold: CGFloat = 0.65
 
-    /// Below this ratio the head is considered jutted forward / dropped (turtle-neck).
-    /// Ratio = (avg ear Y − avg shoulder Y) / shoulder width.
-    /// Tuned empirically; expose as a setting later.
-    static let turtleRatioThreshold: CGFloat = 0.35
+    /// Reject calibrations where good and turtle are too close to distinguish — needed to keep the projection stable.
+    static let minimumSeparation: CGFloat = 0.05
 
-    static func analyze(_ observation: VNHumanBodyPoseObservation) -> PostureVerdict? {
-        guard let points = try? observation.recognizedPoints(.all) else { return nil }
+    static func separation(good: PostureBaseline, turtle: PostureBaseline) -> CGFloat {
+        sqrt(magnitudeSquared(from: good, to: turtle))
+    }
 
-        guard
-            let leftEar = points[.leftEar],
-            let rightEar = points[.rightEar],
-            let leftShoulder = points[.leftShoulder],
-            let rightShoulder = points[.rightShoulder],
-            leftEar.confidence >= minimumJointConfidence,
-            rightEar.confidence >= minimumJointConfidence,
-            leftShoulder.confidence >= minimumJointConfidence,
-            rightShoulder.confidence >= minimumJointConfidence
-        else { return nil }
+    static func analyze(
+        observation: HeadObservation,
+        profile: CalibrationProfile
+    ) -> PostureVerdict {
+        let g = profile.good
+        let t = profile.turtle
 
-        let earY = (leftEar.location.y + rightEar.location.y) / 2
-        let shoulderY = (leftShoulder.location.y + rightShoulder.location.y) / 2
-        let shoulderWidth = abs(leftShoulder.location.x - rightShoulder.location.x)
+        // 4D feature vector: head center (x, y) + bbox size (w, h), all in normalized image units.
+        let dirMagSq = magnitudeSquared(from: g, to: t)
+        guard dirMagSq > 1e-6 else {
+            return PostureVerdict(isTurtle: false, score: 0)
+        }
 
-        guard shoulderWidth > 0.01 else { return nil }
+        let dot =
+            (observation.center.x - g.center.x) * (t.center.x - g.center.x) +
+            (observation.center.y - g.center.y) * (t.center.y - g.center.y) +
+            (observation.boundingBox.width - g.boundingBox.width)
+                * (t.boundingBox.width - g.boundingBox.width) +
+            (observation.boundingBox.height - g.boundingBox.height)
+                * (t.boundingBox.height - g.boundingBox.height)
 
-        let neckRatio = (earY - shoulderY) / shoulderWidth
-        let lowestConfidence = min(
-            leftEar.confidence, rightEar.confidence,
-            leftShoulder.confidence, rightShoulder.confidence
-        )
+        let score = dot / dirMagSq
+        return PostureVerdict(isTurtle: score > scoreThreshold, score: score)
+    }
 
-        return PostureVerdict(
-            isTurtle: neckRatio < turtleRatioThreshold,
-            confidence: lowestConfidence,
-            neckRatio: neckRatio
-        )
+    private static func magnitudeSquared(from a: PostureBaseline, to b: PostureBaseline) -> CGFloat {
+        let dx = b.center.x - a.center.x
+        let dy = b.center.y - a.center.y
+        let dw = b.boundingBox.width - a.boundingBox.width
+        let dh = b.boundingBox.height - a.boundingBox.height
+        return dx * dx + dy * dy + dw * dw + dh * dh
     }
 }
