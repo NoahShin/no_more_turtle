@@ -4,16 +4,19 @@
 
 ## 다운로드 & 설치
 
-[GitHub Releases](https://github.com/NoahShin/no_more_turtle/releases)에서 최신 `.dmg` 파일 받기 → 더블클릭으로 마운트 → `NoMoreTurtle.app`을 `Applications` 폴더로 드래그.
+1. [GitHub Releases](https://github.com/NoahShin/no_more_turtle/releases)에서 최신 `.dmg` 다운로드
+2. 더블클릭으로 마운트 → `NoMoreTurtle.app`을 `Applications` 폴더로 드래그
+3. 앱 더블클릭하면 다음 화면이 뜹니다:
+   > "Apple이 'NoMoreTurtle'에 멀웨어가 없는지 확인할 수 없습니다."
+4. **Done** 클릭 → **System Settings → Privacy & Security** 열기
+5. 맨 아래로 스크롤하면 "NoMoreTurtle was blocked to protect your Mac" 메시지 옆에 **Open Anyway** 버튼 → 클릭
+6. 비밀번호/Touch ID 인증 후 한 번 더 **Open** 클릭 → 정상 실행
 
-> ⚠️ 이 앱은 Apple Developer 계정 없이 ad-hoc 서명만 한 상태라 macOS Gatekeeper가 막을 거예요. 첫 실행 방법:
+> ⚠️ macOS 15 Sequoia부터 우클릭 → "열기" 트릭은 막혔어요. 위의 System Settings 경로가 표준입니다.
 >
-> 1. Finder에서 `/Applications/NoMoreTurtle.app` 우클릭 → **"열기"**
-> 2. 경고 다이얼로그에서 **"열기"** 한 번 더 클릭
->
-> 한 번만 이렇게 하면 다음부터는 더블클릭/Spotlight로 그냥 열려요.
->
-> 또는 터미널에서 quarantine flag 제거: `xattr -dr com.apple.quarantine /Applications/NoMoreTurtle.app`
+> **터미널 한 줄 우회**: `xattr -dr com.apple.quarantine /Applications/NoMoreTurtle.app` 실행하면 위 3-6 단계 다 건너뛰고 더블클릭으로 그냥 열려요.
+
+**한 번만 이렇게 설치하면 이후 모든 업데이트는 앱 내 Settings → "업데이트 확인" 버튼으로 자동**입니다 (System Settings 다시 안 가도 됨).
 
 **요구사항:** macOS **26.0+**
 
