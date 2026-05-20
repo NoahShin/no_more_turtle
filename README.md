@@ -22,7 +22,7 @@
 **이 앱은 카메라가 본 영상을 어디에도 저장하거나 전송하지 않습니다.**
 
 - 비디오/사진/스크린샷 파일로 **저장하지 않음**
-- 네트워크/클라우드로 **전송하지 않음** (네트워크 코드 자체가 없음)
+- 카메라 데이터를 네트워크/클라우드로 **전송하지 않음**
 - 외부 분석 SDK, 텔레메트리, 광고 SDK **없음** — Apple 내장 프레임워크만 사용
 - 카메라 프레임은 **메모리에서만** Apple의 [Vision](https://developer.apple.com/documentation/vision) framework가 처리하고 즉시 폐기됨
 
@@ -32,7 +32,9 @@
 |---|---|
 | `UserDefaults` (`~/Library/Preferences/io.github.noahshin.NoMoreTurtle.plist`) | 캘리브레이션 좌표 (정규화된 4D 숫자), 설정값 (민감도/크기/투명도/자동시작) |
 
-Entitlements도 `com.apple.security.device.camera`만 있고 네트워크 권한이 없어요. 의심되면 `~/no_more_turtle/NoMoreTurtle/` 안의 Swift 소스 직접 확인하시면 됩니다 — 전체 코드 500줄 안쪽이라 한 번에 다 읽힙니다.
+**네트워크 호출:** 단 한 군데, **사용자가 Settings에서 "업데이트 확인" 버튼을 누를 때만** `api.github.com/repos/NoahShin/no_more_turtle/releases/latest`에 GET 요청을 보냅니다. 업데이트 흐름의 일부 (현재 버전 vs 최신 버전 비교)이고, 카메라 데이터는 일절 포함되지 않습니다. 자동 체크 없음 — 클릭해야만 발생.
+
+의심되면 `~/no_more_turtle/NoMoreTurtle/` 안의 Swift 소스 직접 확인하시면 됩니다 — 전체 코드 1000줄 안쪽이라 한 번에 다 읽힙니다.
 
 ## 동작 방식
 

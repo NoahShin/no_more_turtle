@@ -3,9 +3,14 @@ import SwiftUI
 struct SettingsView: View {
 
     @ObservedObject var settings: AppSettings
+    @ObservedObject private var updateService: UpdateService = .shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
+
+            UpdateView(service: updateService)
+
+            Divider()
 
             sliderSection(
                 title: "감지 민감도",
