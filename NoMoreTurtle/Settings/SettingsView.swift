@@ -34,6 +34,11 @@ struct SettingsView: View {
                 caption: nil
             )
 
+            Divider()
+
+            Toggle("앱 실행 시 자동으로 모니터링 시작", isOn: $settings.autoStartMonitoring)
+                .toggleStyle(.switch)
+
             HStack {
                 Spacer()
                 Button("기본값으로 초기화", role: .destructive) {

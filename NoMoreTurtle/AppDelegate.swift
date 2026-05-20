@@ -15,6 +15,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installStatusItem()
         monitor.onStateChange = { [weak self] in self?.refreshMenu() }
         refreshMenu()
+
+        if AppSettings.shared.autoStartMonitoring {
+            startMonitoring()
+        }
     }
 
     private func installStatusItem() {
@@ -98,12 +102,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if monitor.isMonitoring {
             monitor.stop()
         } else {
-            Task { [monitor] in
-                do {
-                    try await monitor.start()
-                } catch {
-                    await MainActor.run { Self.presentError(error) }
-                }
+            startMonitoring()
+        }
+    }
+
+    private func startMonitoring() {
+        Task { [monitor] in
+            do {
+                try await monitor.start()
+            } catch {
+                await MainActor.run { Self.presentError(error) }
             }
         }
     }
