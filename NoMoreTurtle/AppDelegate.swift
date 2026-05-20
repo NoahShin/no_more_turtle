@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var statusItem: NSStatusItem!
     private let monitor = PostureMonitor()
+    private lazy var settingsWindowController = SettingsWindowController(settings: AppSettings.shared)
     private var toggleMenuItem: NSMenuItem!
     private var calibrateGoodItem: NSMenuItem!
     private var calibrateTurtleItem: NSMenuItem!
@@ -58,6 +59,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(clearCalibrationItem)
 
         menu.addItem(.separator())
+
+        let settingsItem = NSMenuItem(
+            title: "Settings…",
+            action: #selector(openSettings),
+            keyEquivalent: ","
+        )
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(
             title: "Quit No More Turtle",
             action: #selector(NSApplication.terminate(_:)),
@@ -107,6 +118,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func clearCalibration() {
         monitor.clearCalibration()
+    }
+
+    @objc private func openSettings() {
+        settingsWindowController.openWindow()
     }
 
     private func showCalibrationResult(_ result: PostureMonitor.CalibrationResult, pose: String) {

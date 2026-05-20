@@ -1,15 +1,35 @@
 import AppKit
+import Combine
 import QuartzCore
 
 @MainActor
 final class TurtleOverlayWindow {
 
-    private static let size = CGSize(width: 600, height: 600)
     private static let margin: CGFloat = 24
     private static let animationDuration: TimeInterval = 0.4
 
+    private let settings = AppSettings.shared
+    private var cancellables = Set<AnyCancellable>()
+
     private var window: NSWindow?
     private var isShown = false
+
+    init() {
+        // Opacity changes apply live to the existing window.
+        settings.$overlayOpacity
+            .sink { [weak self] newValue in
+                self?.window?.alphaValue = newValue
+            }
+            .store(in: &cancellables)
+
+        // Size changes need a new window — invalidate so the next show() rebuilds.
+        settings.$overlaySize
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.invalidateWindow()
+            }
+            .store(in: &cancellables)
+    }
 
     func show() {
         guard !isShown else { return }
@@ -49,13 +69,27 @@ final class TurtleOverlayWindow {
         })
     }
 
+    private func invalidateWindow() {
+        if let w = window {
+            w.orderOut(nil)
+            window = nil
+        }
+        isShown = false
+    }
+
+    private func size() -> CGSize {
+        let side = CGFloat(settings.overlaySize)
+        return CGSize(width: side, height: side)
+    }
+
     private func restingFrame() -> NSRect {
         let screen = NSScreen.main?.visibleFrame ?? NSScreen.screens.first!.frame
+        let s = size()
         return NSRect(
-            x: screen.maxX - Self.size.width - Self.margin,
-            y: screen.maxY - Self.size.height - Self.margin,
-            width: Self.size.width,
-            height: Self.size.height
+            x: screen.maxX - s.width - Self.margin,
+            y: screen.maxY - s.height - Self.margin,
+            width: s.width,
+            height: s.height
         )
     }
 
@@ -78,28 +112,30 @@ final class TurtleOverlayWindow {
     }
 
     private func makeWindow() -> NSWindow {
+        let s = size()
         let w = NSWindow(
-            contentRect: NSRect(origin: .zero, size: Self.size),
+            contentRect: NSRect(origin: .zero, size: s),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
         w.isOpaque = false
         w.backgroundColor = .clear
-        w.alphaValue = 0.55
+        w.alphaValue = settings.overlayOpacity
         w.hasShadow = false
         w.level = .floating
         w.ignoresMouseEvents = true
         w.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
 
         let label = NSTextField(labelWithString: "🐢")
-        label.font = .systemFont(ofSize: 500)
+        // Font scales with the configured window size (keep it proportional to the original 600 / 500).
+        label.font = .systemFont(ofSize: s.height * (500.0 / 600.0))
         label.alignment = .center
         label.isBezeled = false
         label.drawsBackground = false
         label.isEditable = false
         label.isSelectable = false
-        label.frame = NSRect(origin: .zero, size: Self.size)
+        label.frame = NSRect(origin: .zero, size: s)
         w.contentView = label
 
         return w

@@ -19,9 +19,6 @@ struct PostureVerdict: Sendable {
 
 enum PostureAnalyzer {
 
-    /// Trigger when the user has slid ≥65% of the way from their calibrated good posture toward their calibrated turtle posture.
-    static let scoreThreshold: CGFloat = 0.65
-
     /// Reject calibrations where good and turtle are too close to distinguish — needed to keep the projection stable.
     static let minimumSeparation: CGFloat = 0.05
 
@@ -31,7 +28,8 @@ enum PostureAnalyzer {
 
     static func analyze(
         observation: HeadObservation,
-        profile: CalibrationProfile
+        profile: CalibrationProfile,
+        threshold: CGFloat
     ) -> PostureVerdict {
         let g = profile.good
         let t = profile.turtle
@@ -51,7 +49,7 @@ enum PostureAnalyzer {
                 * (t.boundingBox.height - g.boundingBox.height)
 
         let score = dot / dirMagSq
-        return PostureVerdict(isTurtle: score > scoreThreshold, score: score)
+        return PostureVerdict(isTurtle: score > threshold, score: score)
     }
 
     private static func magnitudeSquared(from a: PostureBaseline, to b: PostureBaseline) -> CGFloat {

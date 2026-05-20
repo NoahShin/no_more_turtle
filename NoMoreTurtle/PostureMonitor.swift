@@ -200,7 +200,11 @@ final class PostureMonitor {
             return
         }
 
-        let verdict = PostureAnalyzer.analyze(observation: observation, profile: profile)
+        let verdict = PostureAnalyzer.analyze(
+            observation: observation,
+            profile: profile,
+            threshold: AppSettings.shared.scoreThreshold
+        )
 
         if verdict.isTurtle {
             rawTurtleStreak += 1
