@@ -1,30 +1,94 @@
-# no_more_turtle
+# 🐢 no_more_turtle
 
-맥북 웹캠으로 자세를 모니터링하다가 거북목이 감지되면 화면에 거북이가 튀어나오는 macOS 메뉴바 앱.
+맥북 웹캠으로 자세를 모니터링하다가 거북목이 감지되면 화면 오른쪽에서 거북이가 슬라이드 인 하는 macOS 메뉴바 앱.
 
-## Tech Stack
+## 다운로드 & 설치
 
-- **Swift** + **SwiftUI** / **AppKit** (메뉴바 앱)
-- **Vision** framework — `VNDetectHumanBodyPoseRequest`로 자세 감지
-- **AVFoundation** — 웹캠 캡처
-- **SpriteKit** — 거북이 애니메이션 오버레이
+[GitHub Releases](https://github.com/NoahShin/no_more_turtle/releases)에서 최신 `.dmg` 파일 받기 → 더블클릭으로 마운트 → `NoMoreTurtle.app`을 `Applications` 폴더로 드래그.
 
-## Build
+> ⚠️ 이 앱은 Apple Developer 계정 없이 ad-hoc 서명만 한 상태라 macOS Gatekeeper가 막을 거예요. 첫 실행 방법:
+>
+> 1. Finder에서 `/Applications/NoMoreTurtle.app` 우클릭 → **"열기"**
+> 2. 경고 다이얼로그에서 **"열기"** 한 번 더 클릭
+>
+> 한 번만 이렇게 하면 다음부터는 더블클릭/Spotlight로 그냥 열려요.
+>
+> 또는 터미널에서 quarantine flag 제거: `xattr -dr com.apple.quarantine /Applications/NoMoreTurtle.app`
 
-`.xcodeproj`는 [xcodegen](https://github.com/yonaskolb/XcodeGen)으로 `project.yml`에서 생성합니다 (git에는 커밋하지 않음).
+**요구사항:** macOS **26.0+**
+
+## 🔒 Privacy (중요)
+
+**이 앱은 카메라가 본 영상을 어디에도 저장하거나 전송하지 않습니다.**
+
+- 비디오/사진/스크린샷 파일로 **저장하지 않음**
+- 네트워크/클라우드로 **전송하지 않음** (네트워크 코드 자체가 없음)
+- 외부 분석 SDK, 텔레메트리, 광고 SDK **없음** — Apple 내장 프레임워크만 사용
+- 카메라 프레임은 **메모리에서만** Apple의 [Vision](https://developer.apple.com/documentation/vision) framework가 처리하고 즉시 폐기됨
+
+**디스크에 영구 저장되는 것은 아래가 전부:**
+
+| 위치 | 내용 |
+|---|---|
+| `UserDefaults` (`~/Library/Preferences/io.github.noahshin.NoMoreTurtle.plist`) | 캘리브레이션 좌표 (정규화된 4D 숫자), 설정값 (민감도/크기/투명도/자동시작) |
+
+Entitlements도 `com.apple.security.device.camera`만 있고 네트워크 권한이 없어요. 의심되면 `~/no_more_turtle/NoMoreTurtle/` 안의 Swift 소스 직접 확인하시면 됩니다 — 전체 코드 500줄 안쪽이라 한 번에 다 읽힙니다.
+
+## 동작 방식
+
+1. **Calibrate good posture** (⌘G) — 평소 좋은 자세 잡고 클릭. 얼굴 위치/크기 기록
+2. **Calibrate turtle posture** (⌘T) — 일부러 거북목 자세 잡고 클릭. 또 기록
+3. 두 기록의 **차이 벡터**가 "이 사용자의 거북목 방향". 매 프레임마다 현재 얼굴 위치가 이 벡터를 따라 얼마나 진행했는지 점수화 (`0` = 좋은 자세, `1` = 캘리브레이션한 거북목)
+4. 점수가 threshold (기본 0.65)를 넘기고 ~0.27s 유지되면 거북이 등장
+5. 점수가 다시 내려가서 ~0.5s 유지되면 거북이 퇴장
+
+캘리브레이션이 카메라 각도/위치에 의존하지 않게 만들어서 — 노트북이 정면이든 옆에 비스듬히 있든 자기 자세만 일관되면 잘 작동합니다.
+
+## 개발 빌드
 
 ```sh
 brew install xcodegen
 xcodegen generate
-open NoMoreTurtle.xcodeproj
+open NoMoreTurtle.xcodeproj   # Xcode에서 ▶️
 ```
 
-또는 CLI에서:
-
+CLI:
 ```sh
 xcodebuild -project NoMoreTurtle.xcodeproj -scheme NoMoreTurtle -configuration Debug build
 ```
 
+## 배포용 .dmg 만들기
+
+```sh
+./scripts/build-release.sh 0.1.0   # 버전 인자
+# → build/NoMoreTurtle-0.1.0.dmg
+```
+
+스크립트는 Release 빌드 → ad-hoc 서명 → `Applications` 심볼릭 링크 포함한 DMG 생성. GitHub Releases 업로드는:
+
+```sh
+gh release create v0.1.0 build/NoMoreTurtle-0.1.0.dmg --title "v0.1.0"
+```
+
+요구사항:
+- macOS **26.0+** (Liquid Glass 앱 아이콘 때문)
+- Xcode **26+** (Icon Composer 동봉)
+- xcodegen (`brew install xcodegen`)
+
+## Tech Stack
+
+- **AppKit** 메뉴바 앱 (`LSUIElement=true`, Dock 미등장)
+- **AVFoundation** — 웹캠 캡처
+- **Vision** — `VNDetectFaceRectanglesRequest` (얼굴 bbox, 각도 강건)
+- **SwiftUI** — 환경설정 윈도우
+- **Combine** — 설정 변경 실시간 반영
+- **Icon Composer** — Liquid Glass 앱 아이콘 (`AppIcon.icon`)
+- **xcodegen** — `.xcodeproj`를 `project.yml`에서 생성 (생성물은 git ignore)
+
 ## Status
 
-🐢 스캐폴딩 완료 — 메뉴바 앱, 카메라/Vision/Overlay 골격까지 빌드됨. 자세 감지 임계값 튜닝 + SpriteKit 애니메이션 작업 예정.
+🐢 동작 OK. 후속 작업 후보:
+- GitHub Releases용 .dmg 배포
+- 로그인 시 자동 실행
+- 거북목 감지 통계 (오늘/이번주)
+- 거북이 캐릭터 커스터마이즈
