@@ -28,8 +28,8 @@ targets:
       path: NoMoreTurtle/Info.plist
       properties:
         CFBundleDisplayName: No More Turtle
-        CFBundleShortVersionString: "0.1.1"
-        CFBundleVersion: "2"
+        CFBundleShortVersionString: "0.1.2"
+        CFBundleVersion: "3"
         LSUIElement: true
         LSMinimumSystemVersion: "26.0"
         NSCameraUsageDescription: "거북목 자세를 감지하기 위해 카메라를 사용합니다."
