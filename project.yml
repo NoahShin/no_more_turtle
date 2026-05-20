@@ -2,7 +2,7 @@ name: NoMoreTurtle
 options:
   bundleIdPrefix: io.github.noahshin
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "26.0"
   createIntermediateGroups: true
   groupSortPosition: top
   generateEmptyDirectories: true
@@ -10,7 +10,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.10"
-    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
     SWIFT_STRICT_CONCURRENCY: minimal
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: ""
@@ -31,7 +31,7 @@ targets:
         CFBundleShortVersionString: "0.1.0"
         CFBundleVersion: "1"
         LSUIElement: true
-        LSMinimumSystemVersion: "14.0"
+        LSMinimumSystemVersion: "26.0"
         NSCameraUsageDescription: "거북목 자세를 감지하기 위해 카메라를 사용합니다."
         NSHighResolutionCapable: true
         NSPrincipalClass: NSApplication
