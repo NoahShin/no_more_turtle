@@ -17,6 +17,7 @@ final class PostureMonitor {
     private let overlay = TurtleOverlayWindow()
 
     private(set) var isMonitoring = false
+    private(set) var isPaused = false
     private(set) var goodPosture: PostureBaseline? {
         didSet { Self.persist(goodPosture, key: DefaultsKeys.goodPosture) }
     }
@@ -24,6 +25,12 @@ final class PostureMonitor {
         didSet { Self.persist(turtlePosture, key: DefaultsKeys.turtlePosture) }
     }
     private var lastObservation: HeadObservation?
+
+    private struct ObserverToken {
+        let center: NotificationCenter
+        let token: NSObjectProtocol
+    }
+    private var systemObservers: [ObserverToken] = []
 
     var onStateChange: (() -> Void)?
 
@@ -88,6 +95,8 @@ final class PostureMonitor {
 
         try camera.start()
         isMonitoring = true
+        isPaused = false
+        installSystemObservers()
         onStateChange?()
         log.notice("monitoring started")
         print("🐢 monitoring started")
@@ -97,7 +106,9 @@ final class PostureMonitor {
         guard isMonitoring else { return }
         camera.stop()
         overlay.hide()
+        removeSystemObservers()
         isMonitoring = false
+        isPaused = false
         frameCount = 0
         turtleStreakStart = nil
         normalStreakStart = nil
@@ -106,6 +117,70 @@ final class PostureMonitor {
         onStateChange?()
         log.notice("monitoring stopped")
         print("🐢 monitoring stopped")
+    }
+
+    // MARK: - System pause (screen lock / display sleep / system sleep)
+
+    private func installSystemObservers() {
+        let ws = NSWorkspace.shared.notificationCenter
+        let dn = DistributedNotificationCenter.default()
+
+        let pauseNames: [(NotificationCenter, Notification.Name, String)] = [
+            (ws, NSWorkspace.screensDidSleepNotification, "screens slept"),
+            (ws, NSWorkspace.willSleepNotification, "system sleeping"),
+            (ws, NSWorkspace.sessionDidResignActiveNotification, "session inactive"),
+            (dn, Notification.Name("com.apple.screenIsLocked"), "screen locked"),
+        ]
+        let resumeNames: [(NotificationCenter, Notification.Name, String)] = [
+            (ws, NSWorkspace.screensDidWakeNotification, "screens woke"),
+            (ws, NSWorkspace.didWakeNotification, "system woke"),
+            (ws, NSWorkspace.sessionDidBecomeActiveNotification, "session active"),
+            (dn, Notification.Name("com.apple.screenIsUnlocked"), "screen unlocked"),
+        ]
+
+        for (center, name, reason) in pauseNames {
+            let token = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.pauseForSystem(reason: reason) }
+            }
+            systemObservers.append(ObserverToken(center: center, token: token))
+        }
+        for (center, name, reason) in resumeNames {
+            let token = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.resumeFromSystem(reason: reason) }
+            }
+            systemObservers.append(ObserverToken(center: center, token: token))
+        }
+    }
+
+    private func removeSystemObservers() {
+        for o in systemObservers { o.center.removeObserver(o.token) }
+        systemObservers.removeAll()
+    }
+
+    private func pauseForSystem(reason: String) {
+        guard isMonitoring, !isPaused else { return }
+        isPaused = true
+        camera.stop()
+        overlay.hide()
+        resetSmoothing()
+        onStateChange?()
+        let msg = "⏸ paused — \(reason)"
+        print(msg)
+        log.notice("\(msg, privacy: .public)")
+    }
+
+    private func resumeFromSystem(reason: String) {
+        guard isMonitoring, isPaused else { return }
+        do {
+            try camera.start()
+            isPaused = false
+            onStateChange?()
+            let msg = "▶ resumed — \(reason)"
+            print(msg)
+            log.notice("\(msg, privacy: .public)")
+        } catch {
+            print("⚠️ resume failed (\(reason)): \(error)")
+        }
     }
 
     /// Capture current head observation as the user's good (upright) posture baseline.

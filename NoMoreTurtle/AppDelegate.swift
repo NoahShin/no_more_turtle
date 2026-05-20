@@ -82,7 +82,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshMenu() {
-        toggleMenuItem.title = monitor.isMonitoring ? "Stop monitoring" : "Start monitoring"
+        if monitor.isMonitoring {
+            toggleMenuItem.title = monitor.isPaused
+                ? "Stop monitoring (paused — screen locked)"
+                : "Stop monitoring"
+        } else {
+            toggleMenuItem.title = "Start monitoring"
+        }
 
         let canCapture = monitor.isMonitoring
         calibrateGoodItem.isEnabled = canCapture
