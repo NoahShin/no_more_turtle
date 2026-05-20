@@ -20,6 +20,14 @@ final class CameraManager: NSObject {
     private let videoOutput = AVCaptureVideoDataOutput()
     private let queue = DispatchQueue(label: "io.github.noahshin.NoMoreTurtle.camera", qos: .userInitiated)
 
+    /// Throttle onFrame dispatches to this rate regardless of the camera's actual fps. Head
+    /// posture changes are slow (seconds, not milliseconds), so 1 sample/sec is plenty and gives
+    /// roughly a 30× reduction in Vision/face-detection load vs the 30 fps default.
+    /// `AVCaptureDevice.activeVideoMinFrameDuration` doesn't reliably stick on macOS 26 so we
+    /// drop buffers in the callback ourselves.
+    private static let minFrameInterval: TimeInterval = 1.0
+    private var lastDispatchTime: TimeInterval = 0
+
     var onFrame: ((CMSampleBuffer) -> Void)?
 
     override init() {
@@ -82,6 +90,10 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
+        // Drop buffers to enforce minFrameInterval. Camera delivers ~30 fps; we want ~1.
+        let now = CFAbsoluteTimeGetCurrent()
+        if now - lastDispatchTime < Self.minFrameInterval { return }
+        lastDispatchTime = now
         onFrame?(sampleBuffer)
     }
 }

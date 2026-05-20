@@ -50,14 +50,16 @@ final class PostureMonitor {
         return try? JSONDecoder().decode(PostureBaseline.self, from: data)
     }
 
-    /// Consecutive raw turtle/normal frames required to flip the displayed state.
-    /// Enter is faster so the user gets quick feedback; exit is slower so brief good-posture moments don't dismiss the overlay.
-    private let enterStreakRequired = 8       // ~0.27s at 30fps
-    private let exitStreakRequired = 15       // ~0.5s at 30fps
+    /// Sustained raw-verdict time required to flip the displayed state.
+    /// At our ~1 fps sampling, these effectively become "N consecutive samples":
+    /// enter = 1s ≈ 2nd consecutive turtle sample triggers, exit = 2s ≈ 3rd consecutive good
+    /// posture sample dismisses. Time-based (not frame count) so fps changes don't re-tune.
+    private let enterDuration: TimeInterval = 1.0
+    private let exitDuration: TimeInterval = 2.0
 
     private var frameCount = 0
-    private var rawTurtleStreak = 0
-    private var rawNormalStreak = 0
+    private var turtleStreakStart: Date?
+    private var normalStreakStart: Date?
     private var displayedTurtle = false
     private var lastNoFaceLog = Date.distantPast
 
@@ -97,8 +99,8 @@ final class PostureMonitor {
         overlay.hide()
         isMonitoring = false
         frameCount = 0
-        rawTurtleStreak = 0
-        rawNormalStreak = 0
+        turtleStreakStart = nil
+        normalStreakStart = nil
         displayedTurtle = false
         lastObservation = nil
         onStateChange?()
@@ -166,8 +168,8 @@ final class PostureMonitor {
     }
 
     private func resetSmoothing() {
-        rawTurtleStreak = 0
-        rawNormalStreak = 0
+        turtleStreakStart = nil
+        normalStreakStart = nil
         displayedTurtle = false
     }
 
@@ -206,28 +208,32 @@ final class PostureMonitor {
             threshold: AppSettings.shared.scoreThreshold
         )
 
+        let now = Date()
         if verdict.isTurtle {
-            rawTurtleStreak += 1
-            rawNormalStreak = 0
+            if turtleStreakStart == nil { turtleStreakStart = now }
+            normalStreakStart = nil
         } else {
-            rawNormalStreak += 1
-            rawTurtleStreak = 0
+            if normalStreakStart == nil { normalStreakStart = now }
+            turtleStreakStart = nil
         }
 
+        let turtleHeldFor = turtleStreakStart.map { now.timeIntervalSince($0) } ?? 0
+        let normalHeldFor = normalStreakStart.map { now.timeIntervalSince($0) } ?? 0
+
         let previouslyDisplayed = displayedTurtle
-        if !displayedTurtle, rawTurtleStreak >= enterStreakRequired {
+        if !displayedTurtle, turtleHeldFor >= enterDuration {
             displayedTurtle = true
-        } else if displayedTurtle, rawNormalStreak >= exitStreakRequired {
+        } else if displayedTurtle, normalHeldFor >= exitDuration {
             displayedTurtle = false
         }
 
-        if frameCount % 30 == 0 {
+        if frameCount % 5 == 0 {
             let msg = String(
-                format: "frame=%d score=%.2f raw=%@ shown=%@ streaks(t/n)=%d/%d",
+                format: "frame=%d score=%.2f raw=%@ shown=%@ held(t/n)=%.2fs/%.2fs",
                 frameCount, verdict.score,
                 verdict.isTurtle ? "YES" : "no",
                 displayedTurtle ? "YES" : "no",
-                rawTurtleStreak, rawNormalStreak
+                turtleHeldFor, normalHeldFor
             )
             print(msg)
             log.notice("\(msg, privacy: .public)")
@@ -235,8 +241,8 @@ final class PostureMonitor {
 
         if displayedTurtle != previouslyDisplayed {
             let msg = displayedTurtle
-                ? String(format: "🐢 TURTLE shown (score=%.2f, streak=%d)", verdict.score, rawTurtleStreak)
-                : String(format: "✓ good posture (score=%.2f, streak=%d)", verdict.score, rawNormalStreak)
+                ? String(format: "🐢 TURTLE shown (score=%.2f, held=%.2fs)", verdict.score, turtleHeldFor)
+                : String(format: "✓ good posture (score=%.2f, held=%.2fs)", verdict.score, normalHeldFor)
             print(msg)
             log.notice("\(msg, privacy: .public)")
         }
