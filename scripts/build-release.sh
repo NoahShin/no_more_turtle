@@ -61,6 +61,10 @@ hdiutil create \
 SIZE_HUMAN="$(du -h "$DMG_PATH" | cut -f1)"
 SHA_SHORT="$(shasum -a 256 "$DMG_PATH" | awk '{print $1}' | cut -c1-12)"
 
+# Strip post-build artifacts (raw .app + staging dir) so they stop showing up in
+# Spotlight. The .dmg has everything we need.
+rm -rf "$DERIVED" "$STAGING"
+
 echo ""
 echo "✅ Built ${DMG_PATH} (${SIZE_HUMAN}, sha256 ${SHA_SHORT}…)"
 echo ""
